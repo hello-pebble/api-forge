@@ -24,7 +24,7 @@ class DynamicQueryBuilderTest {
 
     @BeforeEach
     void setUp() {
-        dataset = new Dataset("bills", "국회 의안 정보", "테스트", "NA_BILL");
+        dataset = new Dataset("bills", "의안 정보", "테스트", "NA_BILL");
         dataset.addColumn(new DatasetColumn("BILL_ID", "의안번호", FilterType.EQUALS, true));
         dataset.addColumn(new DatasetColumn("BILL_NM", "의안명", FilterType.WORDS, false));
         dataset.addColumn(new DatasetColumn("COMMITTEE", "소관위원회", FilterType.CHECK, true));

@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 시드된 "국회 의안 정보(bills)" 데이터셋에 대한 E2E 검증.
+ * 시드된 "의안 정보(bills)" 데이터셋에 대한 E2E 검증.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

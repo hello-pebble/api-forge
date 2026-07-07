@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 /**
- * 데모 시드 — "국회 의안 정보" 데이터셋을 등록·발행한다.
+ * 데모 시드 — "의안 정보" 데이터셋을 등록·발행한다.
  * 관리자 API로 등록하는 것과 동일한 경로를 타므로 그 자체가 사용 예시다.
  */
 @Configuration
@@ -26,8 +26,8 @@ public class DataInitializer {
             }
             adminService.create(new DatasetCreateRequest(
                     "bills",
-                    "국회 의안 정보",
-                    "발의된 의안의 기본 정보 (데모용 가상 데이터)",
+                    "의안 정보",
+                    "발의된 의안의 기본 정보 (데모용 가상 데이터, 공공데이터 예시)",
                     "NA_BILL",
                     List.of(
                             new ColumnRequest("BILL_ID", "의안번호", FilterType.EQUALS, true),
