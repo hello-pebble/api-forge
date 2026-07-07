@@ -19,7 +19,7 @@
 | XML 설정 + 메서드 명명 규칙 트랜잭션 | Spring Boot 3 자동설정 + `@Transactional` |
 | `Map` 기반 파라미터 (타입 불안정) | DTO + Bean Validation |
 | 평문 인증키 관리 | **해시 저장 API 키 + 일자별 사용량 집계** (원문 1회 노출, 상수 시간 검증) |
-| 수동 테스트 | 단위·통합 테스트 47건 (H2 36 + PostgreSQL 11) + GitHub Actions CI |
+| 수동 테스트 | 단위·통합 테스트 49건 (H2 38 + PostgreSQL 11) + GitHub Actions CI |
 
 ## 아키텍처
 
@@ -59,9 +59,11 @@ curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?COMMITTEE
 curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?BILL_NM=데이터"
 curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?PROPOSE_DT=2026-01-01,2026-03-31"
 
-# CSV / XML 포맷
+# 멀티 포맷 — json(기본) · csv · xml · excel(.xlsx) · rdf
 curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?format=csv"
 curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?format=xml"
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?format=rdf"
+curl -H "X-API-Key: $KEY" -o bills.xlsx "http://localhost:8080/api/v1/datasets/bills?format=excel"
 ```
 
 ### 새 API를 코드 없이 만들기
@@ -172,12 +174,12 @@ docker compose up
 
 ## 기술 스택
 
-Java 21 · Spring Boot 3.5 · Spring Data JPA (메타데이터 저장) · jOOQ (동적 쿼리) · Spring Security 6 · H2 / PostgreSQL · Testcontainers · Maven · GitHub Actions
+Java 21 · Spring Boot 3.5 · Spring Data JPA (메타데이터 저장) · jOOQ (동적 쿼리) · Spring Security 6 · Apache POI (Excel) · H2 / PostgreSQL · Testcontainers · Maven · GitHub Actions
 
 ## 로드맵
 
 - [x] PostgreSQL 프로필 + Testcontainers 통합 테스트
 - [x] API 키 발급·사용량 통계 (레거시의 인증키 관리 재설계)
-- [ ] Excel(POI)·RDF Writer 추가
+- [x] Excel(POI)·RDF Writer 추가
 - [ ] 데이터셋 버저닝과 스키마 변경 감지
 - [ ] 키별 요청 rate limiting (일자 집계 카운터 재활용)

@@ -90,7 +90,7 @@
   <text x="641" y="416" fill="#be185d" font-size="10" text-anchor="middle">jOOQ · 칼럼 화이트리스트</text>
   <text x="641" y="429" fill="#be185d" font-size="10" text-anchor="middle">+ 값 바인드 파라미터</text>
   <text x="815" y="399" fill="#9d174d" font-size="12.5" font-weight="700" text-anchor="middle">ResponseWriterResolver</text>
-  <text x="815" y="416" fill="#be185d" font-size="10" text-anchor="middle">JSON · CSV · XML</text>
+  <text x="815" y="416" fill="#be185d" font-size="10" text-anchor="middle">JSON·CSV·XML·XLSX·RDF</text>
   <text x="815" y="429" fill="#be185d" font-size="10" text-anchor="middle">전략 빈 자동 수집</text>
 
   <!-- ============ DATA ============ -->

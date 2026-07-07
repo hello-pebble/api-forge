@@ -148,6 +148,31 @@ class OpenApiIntegrationTest {
     }
 
     @Test
+    @DisplayName("Excel 포맷 — xlsx(zip) 바이너리 반환")
+    void excelFormat() throws Exception {
+        byte[] body = mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", "excel"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andReturn().getResponse().getContentAsByteArray();
+        // xlsx 는 zip 컨테이너 — 매직 넘버 'PK'
+        org.assertj.core.api.Assertions.assertThat(body.length).isGreaterThan(0);
+        org.assertj.core.api.Assertions.assertThat(body[0]).isEqualTo((byte) 'P');
+        org.assertj.core.api.Assertions.assertThat(body[1]).isEqualTo((byte) 'K');
+    }
+
+    @Test
+    @DisplayName("RDF 포맷 — RDF/XML 리소스 반환")
+    void rdfFormat() throws Exception {
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", "rdf"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/rdf+xml"))
+                .andExpect(content().string(containsString("<rdf:RDF")))
+                .andExpect(content().string(containsString("rdf:Description")))
+                .andExpect(content().string(containsString("<d:BILL_ID>")));
+    }
+
+    @Test
     @DisplayName("지원하지 않는 포맷은 400")
     void unknownFormat() throws Exception {
         mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", "yaml"))
