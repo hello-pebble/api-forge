@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: api-forge
+
+  datasource:
+    url: jdbc:h2:mem:apiforge;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.format_sql: true
+
+  sql:
+    init:
+      mode: embedded
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  security:
+    user:
+      # 데모용 기본값 — 운영 배포 시 환경변수 ADMIN_USER / ADMIN_PASSWORD 로 재정의
+      name: ${ADMIN_USER:admin}
+      password: ${ADMIN_PASSWORD:admin1234}
+      roles: ADMIN
+
+logging:
+  level:
+    org.jooq: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

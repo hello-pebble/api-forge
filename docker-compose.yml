@@ -1,0 +1,14 @@
+services:
+  api-forge:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # 데모 기본값 재정의 예시
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: change-me
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
