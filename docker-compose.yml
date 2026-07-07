@@ -1,10 +1,33 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: apiforge
+      POSTGRES_USER: apiforge
+      POSTGRES_PASSWORD: apiforge
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apiforge"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api-forge:
     build: .
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      # 데모 기본값 재정의 예시
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: apiforge
+      DB_USER: apiforge
+      DB_PASSWORD: apiforge
+      # 관리자 계정 — 데모 기본값 재정의
       ADMIN_USER: admin
       ADMIN_PASSWORD: change-me
     healthcheck:

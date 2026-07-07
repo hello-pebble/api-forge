@@ -98,6 +98,23 @@ curl http://localhost:8080/api/v1/datasets/bills-mini
 - **발행 게이트**: DRAFT 상태는 포털 미노출, 발행 시 소스 실존 프로브 검증
 - **RBAC**: `/admin/**`은 ADMIN 권한 필요, 조회 API는 공개
 
+## 다중 DB 지원 (H2 · PostgreSQL)
+
+레거시가 5종 DB를 설정값 하나로 전환하던 구조를 Spring Profile로 재현했습니다.
+
+```bash
+# 기본: H2 인메모리 (설정 불필요)
+./mvnw spring-boot:run
+
+# PostgreSQL: 프로필 전환 — 접속 정보는 환경변수로 주입
+SPRING_PROFILES_ACTIVE=postgres DB_HOST=localhost DB_USER=apiforge DB_PASSWORD=apiforge ./mvnw spring-boot:run
+
+# PostgreSQL + 앱을 한 번에 (Docker Compose)
+docker compose up
+```
+
+**식별자 이식성** — PostgreSQL은 미인용 식별자를 소문자로, H2/Oracle은 대문자로 접습니다. 소스 테이블 DDL의 식별자를 인용 대문자로 고정하고 jOOQ가 동일하게 렌더링하도록 맞춰, 같은 메타데이터·같은 쿼리 엔진이 두 DB에서 그대로 동작합니다.
+
 ## 테스트 & CI
 
 ```bash
@@ -105,16 +122,24 @@ curl http://localhost:8080/api/v1/datasets/bills-mini
 ```
 
 - `DynamicQueryBuilderTest` — 필터·정렬·화이트리스트·인젝션 거부 단위 검증
-- `OpenApiIntegrationTest` — 등록→발행→조회 E2E, 포맷·보안·페이징 검증
-- GitHub Actions: push/PR마다 `mvnw verify`
+- `OpenApiIntegrationTest` — 등록→발행→조회 E2E, 포맷·보안·페이징 검증 (H2)
+- `PostgresIntegrationTest` — **Testcontainers**로 실제 PostgreSQL 컨테이너를 띄워 동일 동작·인젝션 방어 이식성 검증 (Docker 없으면 자동 스킵)
+- GitHub Actions: push/PR마다 `mvnw verify` (러너의 Docker로 Testcontainers 실행)
+
+> **로컬에서 Testcontainers가 스킵될 때** — Docker Desktop(Windows)에서 Testcontainers가 데몬을 못 찾으면 엔진 파이프를 지정합니다:
+> ```bash
+> export DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'   # Windows Docker Desktop
+> ./mvnw verify
+> ```
+> Testcontainers 없이 실제 Postgres로 수동 확인하려면 `docker compose up`으로 앱+DB를 띄우고 `curl`로 엔드포인트를 호출하면 됩니다.
 
 ## 기술 스택
 
-Java 21 · Spring Boot 3.5 · Spring Data JPA (메타데이터 저장) · jOOQ (동적 쿼리) · Spring Security 6 · H2 (데모) · Maven · GitHub Actions
+Java 21 · Spring Boot 3.5 · Spring Data JPA (메타데이터 저장) · jOOQ (동적 쿼리) · Spring Security 6 · H2 / PostgreSQL · Testcontainers · Maven · GitHub Actions
 
 ## 로드맵
 
-- [ ] PostgreSQL 프로필 + Testcontainers 통합 테스트
+- [x] PostgreSQL 프로필 + Testcontainers 통합 테스트
 - [ ] API 키 발급·사용량 통계 (레거시의 인증키 관리 재설계)
 - [ ] Excel(POI)·RDF Writer 추가
 - [ ] 데이터셋 버저닝과 스키마 변경 감지

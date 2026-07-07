@@ -1,0 +1,24 @@
+# PostgreSQL 실행 프로필: SPRING_PROFILES_ACTIVE=postgres 로 활성화
+# (기본 프로필은 H2 인메모리 — application.yml)
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:apiforge}
+    username: ${DB_USER:apiforge}
+    password: ${DB_PASSWORD:apiforge}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # 메타데이터 테이블(DATASET, DATASET_COLUMN) 스키마 관리
+      ddl-auto: update
+    properties:
+      hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  sql:
+    init:
+      # 비내장 DB에서도 소스 테이블(NA_BILL) 스키마·시드를 적용
+      mode: always
+
+  h2:
+    console:
+      enabled: false
