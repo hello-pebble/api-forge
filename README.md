@@ -1,5 +1,9 @@
 # api-forge
 
+[![CI](https://github.com/hello-pebble/api-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/hello-pebble/api-forge/actions/workflows/ci.yml)
+[![Java](https://img.shields.io/badge/Java-21-orange)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen)](https://spring.io/projects/spring-boot)
+
 > **메타데이터 기반 No-Code 동적 Open API 생성 플랫폼**
 >
 > 관리자가 DB 테이블·칼럼 설정만 등록하면, 코드 수정·배포 없이 즉시 필터·정렬·페이징·멀티포맷을 지원하는 Open API가 생성됩니다.
