@@ -1,5 +1,6 @@
 package io.apiforge.web;
 
+import io.apiforge.config.DataInitializer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers(disabledWithoutDocker = true)
 class PostgresIntegrationTest {
 
+    private static final String KEY = DataInitializer.DEMO_API_KEY;
+
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
@@ -61,7 +64,7 @@ class PostgresIntegrationTest {
     @Test
     @DisplayName("기본 조회 — 전체 15건")
     void queryAll() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(15));
     }
@@ -69,7 +72,7 @@ class PostgresIntegrationTest {
     @Test
     @DisplayName("CHECK 필터 — 소관위원회 (PostgreSQL IN)")
     void checkFilter() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills").param("COMMITTEE", "행정안전위원회"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("COMMITTEE", "행정안전위원회"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(3));
     }
@@ -77,7 +80,7 @@ class PostgresIntegrationTest {
     @Test
     @DisplayName("WORDS 필터 — 부분 검색 (PostgreSQL ILIKE)")
     void wordsFilter() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills").param("BILL_NM", "데이터"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("BILL_NM", "데이터"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(2));
     }
@@ -85,7 +88,7 @@ class PostgresIntegrationTest {
     @Test
     @DisplayName("DATE 필터 — 날짜 범위 (PostgreSQL BETWEEN)")
     void dateFilter() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills").param("PROPOSE_DT", "2026-01-01,2026-02-28"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("PROPOSE_DT", "2026-01-01,2026-02-28"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(5));
     }
@@ -93,7 +96,7 @@ class PostgresIntegrationTest {
     @Test
     @DisplayName("정렬 — 발의일자 내림차순")
     void sortDesc() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills").param("sort", "PROPOSE_DT,desc"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("sort", "PROPOSE_DT,desc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].BILL_ID").value("2200015"));
     }
@@ -101,7 +104,7 @@ class PostgresIntegrationTest {
     @Test
     @DisplayName("SQL Injection 시도 값은 바인드 파라미터로 처리되어 0건 — PostgreSQL에서도 유효")
     void injectionValueIsHarmless() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills").param("BILL_ID", "' OR '1'='1"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("BILL_ID", "' OR '1'='1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(0));
     }
@@ -109,14 +112,21 @@ class PostgresIntegrationTest {
     @Test
     @DisplayName("등록되지 않은 필터 파라미터는 400")
     void unregisteredFilterRejected() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills").param("EVIL", "1"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("EVIL", "1"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("API 키 없이는 데이터 질의 불가 — 401 (PostgreSQL 프로필)")
+    void missingKeyRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/datasets/bills"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("CSV 포맷 — 표시명 헤더")
     void csvFormat() throws Exception {
-        mockMvc.perform(get("/api/v1/datasets/bills").param("format", "csv"))
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", "csv"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("의안번호")));
     }

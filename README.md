@@ -18,7 +18,8 @@
 | `switch` 포맷 분기 (수정 시 코드 변경) | **Writer 전략 빈 자동 수집** — 구현체 추가만으로 신규 포맷 등록 |
 | XML 설정 + 메서드 명명 규칙 트랜잭션 | Spring Boot 3 자동설정 + `@Transactional` |
 | `Map` 기반 파라미터 (타입 불안정) | DTO + Bean Validation |
-| 수동 테스트 | 단위·통합 테스트 29건 + GitHub Actions CI |
+| 평문 인증키 관리 | **해시 저장 API 키 + 일자별 사용량 집계** (원문 1회 노출, 상수 시간 검증) |
+| 수동 테스트 | 단위·통합 테스트 47건 (H2 36 + PostgreSQL 11) + GitHub Actions CI |
 
 ## 아키텍처
 
@@ -39,23 +40,28 @@
 
 시드 데이터(의안 정보 예시, 가상 데이터 15건)가 자동 등록·발행됩니다.
 
+데이터 질의에는 API 키가 필요합니다(`X-API-Key` 헤더). 데모 키가 함께 시드됩니다: `demo-api-key-000000000000000000000000`
+
 ```bash
-# 카탈로그 — 사용 가능한 데이터셋과 필터·정렬 칼럼 확인
+# 카탈로그 — 키 없이 공개 조회 (사용 가능한 데이터셋·필터·정렬 칼럼 확인)
 curl http://localhost:8080/api/v1/datasets
 
+# 이하 데이터 질의는 데모 키 사용
+KEY="demo-api-key-000000000000000000000000"
+
 # 기본 조회
-curl "http://localhost:8080/api/v1/datasets/bills"
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills"
 
 # 필터 + 정렬 + 페이징
-curl "http://localhost:8080/api/v1/datasets/bills?COMMITTEE=행정안전위원회&sort=PROPOSE_DT,desc&page=0&size=10"
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?COMMITTEE=행정안전위원회&sort=PROPOSE_DT,desc&page=0&size=10"
 
 # 의안명 부분 검색 (WORDS) / 날짜 범위 (DATE)
-curl "http://localhost:8080/api/v1/datasets/bills?BILL_NM=데이터"
-curl "http://localhost:8080/api/v1/datasets/bills?PROPOSE_DT=2026-01-01,2026-03-31"
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?BILL_NM=데이터"
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?PROPOSE_DT=2026-01-01,2026-03-31"
 
 # CSV / XML 포맷
-curl "http://localhost:8080/api/v1/datasets/bills?format=csv"
-curl "http://localhost:8080/api/v1/datasets/bills?format=xml"
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?format=csv"
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/datasets/bills?format=xml"
 ```
 
 ### 새 API를 코드 없이 만들기
@@ -96,7 +102,37 @@ curl http://localhost:8080/api/v1/datasets/bills-mini
 - **식별자 화이트리스트**: 테이블·칼럼명은 관리자가 등록한 메타데이터에 있는 것만 SQL에 진입. 등록 시에도 `[A-Za-z][A-Za-z0-9_]*` 규칙 검증
 - **값 바인딩**: 요청 값은 예외 없이 jOOQ 바인드 파라미터 — `?BILL_ID=' OR '1'='1` 은 그냥 0건짜리 문자열 검색 (통합 테스트로 증명)
 - **발행 게이트**: DRAFT 상태는 포털 미노출, 발행 시 소스 실존 프로브 검증
-- **RBAC**: `/admin/**`은 ADMIN 권한 필요, 조회 API는 공개
+- **RBAC**: `/admin/**`은 ADMIN 권한 필요, 데이터 질의는 API 키 필요, 카탈로그는 공개
+- **API 키 저장**: 원문은 발급 시 1회만 노출하고 DB엔 SHA-256 해시만 저장, 인증은 상수 시간 비교
+
+## API 키 & 사용량 통계
+
+데이터 질의 엔드포인트는 API 키로 보호됩니다(공공데이터포털의 인증키 발급 모델). 카탈로그는 공개로 두어 탐색은 자유롭게, 데이터 소비는 키 기반으로 추적합니다.
+
+```bash
+# 키 발급 (관리자) — rawKey는 이 응답에서만 확인 가능
+curl -X POST http://localhost:8080/admin/api/keys \
+  -u admin:admin1234 -H "Content-Type: application/json" \
+  -d '{"label":"모바일 앱"}'
+# → { "rawKey": "3f9c...(48 hex)", "keyPrefix": "3f9c...", "notice": "..." }
+
+# 발급 키로 데이터 질의
+curl -H "X-API-Key: 3f9c...(48 hex)" "http://localhost:8080/api/v1/datasets/bills"
+
+# 키 목록 (원문·해시 미노출)
+curl -u admin:admin1234 http://localhost:8080/admin/api/keys
+
+# 사용량 통계 — 총 호출수 + (데이터셋, 일자)별 집계
+curl -u admin:admin1234 http://localhost:8080/admin/api/keys/{keyPrefix}/usage
+
+# 키 폐기 — 이후 해당 키 요청은 401
+curl -X POST -u admin:admin1234 http://localhost:8080/admin/api/keys/{keyPrefix}/revoke
+```
+
+**설계 포인트**
+- 키 조회는 원문 앞 12자 `keyPrefix` 인덱스로 O(1), 검증은 `MessageDigest.isEqual`(상수 시간)
+- 사용량은 요청 로그를 원본 저장하지 않고 `(키, 데이터셋, 일자)` 단위로 **집계 카운터**만 누적 — 조회·저장 비용 최소화
+- 카운터 증가는 조건부 UPDATE→없으면 INSERT (이식성 우선). 운영에선 DB 업서트(`ON CONFLICT`/`MERGE`)로 원자화 가능 — 코드에 주석으로 명시
 
 ## 다중 DB 지원 (H2 · PostgreSQL)
 
@@ -123,6 +159,7 @@ docker compose up
 
 - `DynamicQueryBuilderTest` — 필터·정렬·화이트리스트·인젝션 거부 단위 검증
 - `OpenApiIntegrationTest` — 등록→발행→조회 E2E, 포맷·보안·페이징 검증 (H2)
+- `ApiKeyIntegrationTest` — 키 발급·인증·폐기·사용량 집계 검증
 - `PostgresIntegrationTest` — **Testcontainers**로 실제 PostgreSQL 컨테이너를 띄워 동일 동작·인젝션 방어 이식성 검증 (Docker 없으면 자동 스킵)
 - GitHub Actions: push/PR마다 `mvnw verify` (러너의 Docker로 Testcontainers 실행)
 
@@ -140,6 +177,7 @@ Java 21 · Spring Boot 3.5 · Spring Data JPA (메타데이터 저장) · jOOQ (
 ## 로드맵
 
 - [x] PostgreSQL 프로필 + Testcontainers 통합 테스트
-- [ ] API 키 발급·사용량 통계 (레거시의 인증키 관리 재설계)
+- [x] API 키 발급·사용량 통계 (레거시의 인증키 관리 재설계)
 - [ ] Excel(POI)·RDF Writer 추가
 - [ ] 데이터셋 버저닝과 스키마 변경 감지
+- [ ] 키별 요청 rate limiting (일자 집계 카운터 재활용)

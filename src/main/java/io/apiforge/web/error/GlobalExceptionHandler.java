@@ -22,6 +22,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
+    @ExceptionHandler(ApiKeyException.class)
+    public ResponseEntity<Map<String, Object>> unauthorized(ApiKeyException e) {
+        return error(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
