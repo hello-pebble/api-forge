@@ -19,7 +19,7 @@
 | XML 설정 + 메서드 명명 규칙 트랜잭션 | Spring Boot 3 자동설정 + `@Transactional` |
 | `Map` 기반 파라미터 (타입 불안정) | DTO + Bean Validation |
 | 평문 인증키 관리 | **해시 저장 API 키 + 일자별 사용량 집계** (원문 1회 노출, 상수 시간 검증) |
-| 수동 테스트 | 단위·통합 테스트 49건 (H2 38 + PostgreSQL 11) + GitHub Actions CI |
+| 수동 테스트 | 단위·통합 테스트 50건 (H2 38 + PostgreSQL 12) + GitHub Actions CI |
 
 ## 아키텍처
 
