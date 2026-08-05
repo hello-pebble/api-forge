@@ -66,13 +66,28 @@ api-forge는 필터 유형별 SQL을 코드에 고정하고 메타데이터에�
 | 재배포 | 필요 | 불필요 |
 | 방식 | 소스 수정 | 데이터셋 등록 → 발행 |
 
+### 페이징 — 방언 결합의 실제 지점
+
+레거시의 페이징은 두 방식이 공존했습니다.
+
+| 경로 | 방식 | 특성 |
+|---|---|---|
+| 조회 SQL | XML에 고정된 ROWNUM 공통 래퍼 + 바인드 변수 | Oracle 계열(Tibero) 방언에 결합 — DB를 바꾸면 래퍼도 함께 바꿔야 함 |
+| 관리 화면 목록 (기본값) | 방언 무관 ResultSet 스크롤 | DB 독립적이지만 페이지가 깊어질수록 커서 이동 비용 증가 |
+
+api-forge는 페이징을 jOOQ `limit().offset()` 하나로 통일합니다.
+방언별 SQL 렌더링은 jOOQ가 담당하므로 페이징 코드는 DB와 무관하고, `size`는 1..100으로 클램프됩니다.
+
 ### 다중 DB
 
-레거시에는 표준프레임워크가 제공하는 5종 datasource(mysql · oracle · altibase · tibero · cubrid)
-전환 구조가 있었으나, **실제 운영은 Tibero 단일**이었고 SQL 맵 디렉터리도 1종만 존재했습니다.
-즉 전환 구조는 있었지만 검증된 적이 없습니다.
+레거시의 DB 전환은 쿼리 내부 분기가 아니라 **SQL 맵 세트를 통째로 교체**하는 구조였습니다.
+datasource 설정이 방언별 SQL 맵 설정과 방언 디렉터리(`sqlmap/tibero/**/*.xml`, 파일명 `*_Sql_Tibero.xml`)를
+참조하고, 표준프레임워크가 제공하는 5종(mysql · oracle · altibase · tibero · cubrid) 중 하나를 선택합니다.
+그러나 **실제 운영은 Tibero 단일**이었고 SQL 맵 디렉터리도 1종만 존재했습니다 —
+전환 구조는 있었지만 검증된 적이 없고, DB를 추가하려면 전체 SQL 맵을 방언별로 복제해야 합니다.
 
-api-forge는 H2 · PostgreSQL 2종을 Spring Profile로 전환하고,
+api-forge는 SQL을 파일로 관리하지 않으므로 방언별로 복제할 SQL 자산 자체가 없습니다.
+jOOQ가 같은 쿼리 정의를 방언별 SQL로 렌더링하고, H2 · PostgreSQL 2종을 Spring Profile로 전환하며,
 Testcontainers로 실제 PostgreSQL 컨테이너를 띄워 **동일 동작과 인젝션 방어 이식성을 검증**합니다.
 지원 DB 수를 늘린 것이 아니라, 검증되지 않았던 구조를 검증 가능한 형태로 바꾼 것입니다.
 
