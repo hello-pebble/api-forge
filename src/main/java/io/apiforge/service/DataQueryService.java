@@ -4,6 +4,7 @@ import io.apiforge.domain.Dataset;
 import io.apiforge.query.DynamicQueryBuilder;
 import io.apiforge.query.QueryResult;
 import io.apiforge.web.error.DatasetNotFoundException;
+import io.apiforge.web.error.InvalidQueryException;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Field;
@@ -43,6 +44,7 @@ public class DataQueryService {
 
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = offsetOf(safePage, safeSize);
 
         Table<?> table = DSL.table(DSL.name(dataset.getSourceTable()));
         List<Field<?>> fields = queryBuilder.selectFields(dataset);
@@ -59,9 +61,22 @@ public class DataQueryService {
                 .where(conditions)
                 .orderBy(orderBy)
                 .limit(safeSize)
-                .offset(safePage * safeSize)
+                .offset(offset)
                 .fetchMaps();
 
         return new QueryResult(dataset, safePage, safeSize, total == null ? 0 : total, rows);
+    }
+
+    /**
+     * OFFSET 계산 — page * size 를 int 로 곱하면 오버플로가 나 음수 OFFSET 이 되고
+     * SQL 실행 단계에서 500 으로 터진다. long 으로 계산해 범위를 벗어나면 400 으로 거부한다.
+     */
+    private static int offsetOf(int page, int size) {
+        long offset = (long) page * size;
+        if (offset > Integer.MAX_VALUE) {
+            throw new InvalidQueryException(
+                    "페이지 범위를 벗어났습니다 (page * size 는 " + Integer.MAX_VALUE + " 이하여야 합니다): page=" + page);
+        }
+        return (int) offset;
     }
 }

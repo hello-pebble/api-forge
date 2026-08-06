@@ -103,6 +103,36 @@ class OpenApiIntegrationTest {
                 .andExpect(jsonPath("$.data[0].BILL_ID").value("2200006"));
     }
 
+    @Test
+    @DisplayName("page * size 오버플로는 500이 아니라 400")
+    void pagingOverflowRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY)
+                        .param("page", String.valueOf(Integer.MAX_VALUE)).param("size", "100"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("페이지 범위를 벗어났습니다")));
+    }
+
+    @Test
+    @DisplayName("OFFSET 상한 경계는 정상 처리 — 데이터가 없어 빈 결과")
+    void pagingAtOffsetBoundary() throws Exception {
+        // page * size 가 Integer.MAX_VALUE 를 넘지 않는 최대 지점
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY)
+                        .param("page", String.valueOf(Integer.MAX_VALUE / 100)).param("size", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(15))
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("음수 page 는 0으로 보정된다")
+    void negativePageClamped() throws Exception {
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY)
+                        .param("page", "-5").param("size", "1").param("sort", "BILL_ID"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.data[0].BILL_ID").value("2200001"));
+    }
+
     // ── 보안 ─────────────────────────────────────────────────────
 
     @Test
