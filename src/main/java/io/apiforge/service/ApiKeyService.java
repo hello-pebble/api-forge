@@ -4,15 +4,12 @@ import io.apiforge.domain.ApiKey;
 import io.apiforge.repository.ApiKeyRepository;
 import io.apiforge.repository.ApiKeyUsageDailyRepository;
 import io.apiforge.security.ApiKeys;
-import io.apiforge.domain.ApiKeyUsageDaily;
 import io.apiforge.web.dto.ApiKeyUsageReport;
 import io.apiforge.web.error.ApiKeyException;
 import io.apiforge.web.error.DatasetNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -27,10 +24,14 @@ public class ApiKeyService {
 
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyUsageDailyRepository usageRepository;
+    private final ApiKeyUsageFlusher usageFlusher;
 
-    public ApiKeyService(ApiKeyRepository apiKeyRepository, ApiKeyUsageDailyRepository usageRepository) {
+    public ApiKeyService(ApiKeyRepository apiKeyRepository,
+                         ApiKeyUsageDailyRepository usageRepository,
+                         ApiKeyUsageFlusher usageFlusher) {
         this.apiKeyRepository = apiKeyRepository;
         this.usageRepository = usageRepository;
+        this.usageFlusher = usageFlusher;
     }
 
     /** 새 키 발급 — 원문은 반환값으로만 노출되고 저장되지 않는다. */
@@ -70,27 +71,9 @@ public class ApiKeyService {
         return key;
     }
 
-    /**
-     * 사용량 기록 — 일자별 카운터 증가 + 키 총계/마지막 사용 시각 갱신.
-     * 운영 환경이라면 DB 업서트(ON CONFLICT / MERGE)로 원자화하는 것이 이상적이나,
-     * 여기서는 이식성을 위해 조건부 UPDATE 후 없으면 INSERT 방식을 사용한다.
-     */
-    @Transactional
-    public void recordUsage(Long apiKeyId, String datasetKey, LocalDate date, LocalDateTime now) {
-        int updated = usageRepository.increment(apiKeyId, datasetKey, date);
-        if (updated == 0) {
-            try {
-                usageRepository.save(new ApiKeyUsageDaily(
-                        apiKeyRepository.getReferenceById(apiKeyId), datasetKey, date, 1));
-            } catch (DataIntegrityViolationException raceLost) {
-                usageRepository.increment(apiKeyId, datasetKey, date);
-            }
-        }
-        apiKeyRepository.touch(apiKeyId, now);
-    }
-
     @Transactional(readOnly = true)
     public List<ApiKey> list() {
+        usageFlusher.flush();
         return apiKeyRepository.findAllByOrderByCreatedAtDesc();
     }
 
@@ -101,8 +84,10 @@ public class ApiKeyService {
         key.revoke();
     }
 
+    /** 버퍼를 먼저 비워 방금 발생한 요청까지 반영된 수치를 보인다. */
     @Transactional(readOnly = true)
     public ApiKeyUsageReport usage(String keyPrefix) {
+        usageFlusher.flush();
         ApiKey key = apiKeyRepository.findByKeyPrefix(keyPrefix)
                 .orElseThrow(() -> new DatasetNotFoundException(keyPrefix));
         return ApiKeyUsageReport.of(key,

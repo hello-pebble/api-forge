@@ -18,8 +18,12 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
 
     List<ApiKey> findAllByOrderByCreatedAtDesc();
 
-    /** 총 호출수 증가 + 마지막 사용 시각 갱신 (단일 UPDATE로 원자 처리) */
+    /**
+     * 누적 호출수 반영 + 마지막 사용 시각 갱신 (단일 UPDATE로 원자 처리).
+     * 요청마다 1씩 올리면 인기 키의 동일 행에 락이 직렬화되므로,
+     * 버퍼에 모은 delta 를 한 번에 더한다.
+     */
     @Modifying
-    @Query("UPDATE ApiKey k SET k.totalRequests = k.totalRequests + 1, k.lastUsedAt = :now WHERE k.id = :id")
-    int touch(@Param("id") Long id, @Param("now") LocalDateTime now);
+    @Query("UPDATE ApiKey k SET k.totalRequests = k.totalRequests + :delta, k.lastUsedAt = :now WHERE k.id = :id")
+    int addRequests(@Param("id") Long id, @Param("delta") long delta, @Param("now") LocalDateTime now);
 }

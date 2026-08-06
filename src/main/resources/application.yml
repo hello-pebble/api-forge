@@ -14,6 +14,9 @@ spring:
     open-in-view: false
     properties:
       hibernate.format_sql: true
+      # LAZY 컬렉션을 IN (...) 한 번으로 모아 로드 — 1+N 을 1+1 로 만든다.
+      # (Dataset.columns 를 순회하는 카탈로그·관리자 목록에 적용)
+      hibernate.default_batch_fetch_size: 100
 
   sql:
     init:
@@ -30,6 +33,12 @@ spring:
       name: ${ADMIN_USER:admin}
       password: ${ADMIN_PASSWORD:admin1234}
       roles: ADMIN
+
+apiforge:
+  usage:
+    # 사용량 카운터를 메모리에 모았다가 주기적으로 반영하는 간격(ms).
+    # 0 이하면 버퍼링 없이 요청마다 즉시 기록한다.
+    flush-interval-ms: 5000
 
 logging:
   level:

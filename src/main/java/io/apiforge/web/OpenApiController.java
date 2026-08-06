@@ -1,14 +1,12 @@
 package io.apiforge.web;
 
-import io.apiforge.domain.DatasetStatus;
 import io.apiforge.export.ResponseWriter;
 import io.apiforge.export.ResponseWriterResolver;
 import io.apiforge.query.QueryResult;
-import io.apiforge.repository.DatasetRepository;
 import io.apiforge.service.DataQueryService;
+import io.apiforge.service.DatasetMetadataCache;
 import io.apiforge.web.dto.DatasetView;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,22 +32,21 @@ public class OpenApiController {
     private static final Set<String> RESERVED_PARAMS = Set.of("page", "size", "sort", "format");
 
     private final DataQueryService dataQueryService;
-    private final DatasetRepository datasetRepository;
+    private final DatasetMetadataCache metadataCache;
     private final ResponseWriterResolver writerResolver;
 
     public OpenApiController(DataQueryService dataQueryService,
-                             DatasetRepository datasetRepository,
+                             DatasetMetadataCache metadataCache,
                              ResponseWriterResolver writerResolver) {
         this.dataQueryService = dataQueryService;
-        this.datasetRepository = datasetRepository;
+        this.metadataCache = metadataCache;
         this.writerResolver = writerResolver;
     }
 
     /** 발행된 데이터셋 카탈로그 — 사용 가능한 필터·정렬 칼럼 메타데이터 포함 */
     @GetMapping
-    @Transactional(readOnly = true)
     public List<DatasetView> catalog() {
-        return datasetRepository.findAllByStatus(DatasetStatus.PUBLISHED).stream()
+        return metadataCache.publishedCatalog().stream()
                 .map(DatasetView::from)
                 .toList();
     }

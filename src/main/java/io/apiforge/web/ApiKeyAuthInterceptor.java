@@ -2,6 +2,7 @@ package io.apiforge.web;
 
 import io.apiforge.domain.ApiKey;
 import io.apiforge.service.ApiKeyService;
+import io.apiforge.service.ApiKeyUsageBuffer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -23,9 +24,11 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
     private static final String RESOLVED_KEY_ID = "apiforge.apiKeyId";
 
     private final ApiKeyService apiKeyService;
+    private final ApiKeyUsageBuffer usageBuffer;
 
-    public ApiKeyAuthInterceptor(ApiKeyService apiKeyService) {
+    public ApiKeyAuthInterceptor(ApiKeyService apiKeyService, ApiKeyUsageBuffer usageBuffer) {
         this.apiKeyService = apiKeyService;
+        this.usageBuffer = usageBuffer;
     }
 
     @Override
@@ -49,7 +52,8 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
         if (vars instanceof Map<?, ?> map) {
             Object datasetKey = ((Map<String, String>) map).get("datasetKey");
             if (datasetKey != null) {
-                apiKeyService.recordUsage((Long) keyId, datasetKey.toString(),
+                // DB 쓰기 없이 메모리 버퍼에만 적재 — 실제 반영은 ApiKeyUsageFlusher 가 일괄 처리
+                usageBuffer.record((Long) keyId, datasetKey.toString(),
                         LocalDate.now(), LocalDateTime.now());
             }
         }

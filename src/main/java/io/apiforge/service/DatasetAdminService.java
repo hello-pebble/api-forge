@@ -23,10 +23,14 @@ import java.util.List;
 public class DatasetAdminService {
 
     private final DatasetRepository datasetRepository;
+    private final DatasetMetadataCache metadataCache;
     private final DSLContext dsl;
 
-    public DatasetAdminService(DatasetRepository datasetRepository, DSLContext dsl) {
+    public DatasetAdminService(DatasetRepository datasetRepository,
+                               DatasetMetadataCache metadataCache,
+                               DSLContext dsl) {
         this.datasetRepository = datasetRepository;
+        this.metadataCache = metadataCache;
         this.dsl = dsl;
     }
 
@@ -44,6 +48,7 @@ public class DatasetAdminService {
             dataset.addColumn(new DatasetColumn(
                     col.sourceColumn(), col.displayName(), col.filterType(), col.sortable()));
         });
+        metadataCache.invalidate();
         return datasetRepository.save(dataset);
     }
 
@@ -53,6 +58,7 @@ public class DatasetAdminService {
                 .orElseThrow(() -> new DatasetNotFoundException(datasetKey));
         verifySourceExists(dataset);
         dataset.publish();
+        metadataCache.invalidate();
         return dataset;
     }
 
@@ -61,6 +67,7 @@ public class DatasetAdminService {
         Dataset dataset = datasetRepository.findByDatasetKey(datasetKey)
                 .orElseThrow(() -> new DatasetNotFoundException(datasetKey));
         datasetRepository.delete(dataset);
+        metadataCache.invalidate();
     }
 
     /** 발행 전 소스 테이블·칼럼 실존 검증 — LIMIT 0 프로브 쿼리 */

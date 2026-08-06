@@ -1,10 +1,8 @@
 package io.apiforge.service;
 
 import io.apiforge.domain.Dataset;
-import io.apiforge.domain.DatasetStatus;
 import io.apiforge.query.DynamicQueryBuilder;
 import io.apiforge.query.QueryResult;
-import io.apiforge.repository.DatasetRepository;
 import io.apiforge.web.error.DatasetNotFoundException;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -28,19 +26,19 @@ public class DataQueryService {
     public static final int MAX_PAGE_SIZE = 100;
     public static final int DEFAULT_PAGE_SIZE = 20;
 
-    private final DatasetRepository datasetRepository;
+    private final DatasetMetadataCache metadataCache;
     private final DynamicQueryBuilder queryBuilder;
     private final DSLContext dsl;
 
-    public DataQueryService(DatasetRepository datasetRepository, DynamicQueryBuilder queryBuilder, DSLContext dsl) {
-        this.datasetRepository = datasetRepository;
+    public DataQueryService(DatasetMetadataCache metadataCache, DynamicQueryBuilder queryBuilder, DSLContext dsl) {
+        this.metadataCache = metadataCache;
         this.queryBuilder = queryBuilder;
         this.dsl = dsl;
     }
 
     @Transactional(readOnly = true)
     public QueryResult query(String datasetKey, Map<String, String> filterParams, String sortParam, int page, int size) {
-        Dataset dataset = datasetRepository.findByDatasetKeyAndStatus(datasetKey, DatasetStatus.PUBLISHED)
+        Dataset dataset = metadataCache.findPublished(datasetKey)
                 .orElseThrow(() -> new DatasetNotFoundException(datasetKey));
 
         int safePage = Math.max(page, 0);
