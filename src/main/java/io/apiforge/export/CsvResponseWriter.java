@@ -28,6 +28,11 @@ public class CsvResponseWriter implements ResponseWriter {
     }
 
     @Override
+    public String downloadExtension() {
+        return "csv";
+    }
+
+    @Override
     public void write(QueryResult result, OutputStream out) throws IOException {
         out.write(UTF8_BOM);
         Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
@@ -54,8 +59,12 @@ public class CsvResponseWriter implements ResponseWriter {
         return value == null ? "" : String.valueOf(value);
     }
 
+    /**
+     * RFC 4180 인용 처리.
+     * CR 단독(구형 Mac 개행)도 행 구분자로 해석될 수 있으므로 LF 와 함께 인용 대상이다.
+     */
     private String escape(String value) {
-        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
         return value;

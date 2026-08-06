@@ -35,6 +35,11 @@ public class ExcelResponseWriter implements ResponseWriter {
     }
 
     @Override
+    public String downloadExtension() {
+        return "xlsx";
+    }
+
+    @Override
     public void write(QueryResult result, OutputStream out) throws IOException {
         List<DatasetColumn> columns = result.dataset().getColumns();
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(WINDOW_SIZE)) {

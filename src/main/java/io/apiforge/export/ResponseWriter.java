@@ -16,5 +16,13 @@ public interface ResponseWriter {
 
     String contentType();
 
+    /**
+     * 브라우저에서 바로 열기보다 파일로 저장되는 게 자연스러운 포맷이면 확장자를 반환한다.
+     * null 이면 Content-Disposition 없이 인라인으로 응답한다.
+     */
+    default String downloadExtension() {
+        return null;
+    }
+
     void write(QueryResult result, OutputStream out) throws IOException;
 }

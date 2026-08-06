@@ -44,7 +44,9 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) {
         Object keyId = request.getAttribute(RESOLVED_KEY_ID);
-        boolean success = response.getStatus() >= 200 && response.getStatus() < 300;
+        // 응답을 스트리밍하다 실패하면 상태코드는 이미 200 으로 커밋된 뒤라
+        // 상태코드만으로는 성공을 판별할 수 없다. 전달된 예외로 함께 걸러낸다.
+        boolean success = ex == null && response.getStatus() >= 200 && response.getStatus() < 300;
         if (keyId == null || !success) {
             return;
         }

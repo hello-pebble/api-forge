@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,6 +31,18 @@ class OpenApiIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    /** CSV 인용 검증용 픽스처 — 데모 시드를 건드리지 않도록 테스트에서만 만든다. */
+    private void createCsvQuoteSource() {
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS \"CSV_QUOTE_SRC\" (\"VAL\" VARCHAR(50))");
+        jdbcTemplate.execute("DELETE FROM \"CSV_QUOTE_SRC\"");
+        jdbcTemplate.update("INSERT INTO \"CSV_QUOTE_SRC\" VALUES (?)", "a,b");
+        jdbcTemplate.update("INSERT INTO \"CSV_QUOTE_SRC\" VALUES (?)", "\"q\"");
+        jdbcTemplate.update("INSERT INTO \"CSV_QUOTE_SRC\" VALUES (?)", "cr\rhere");
+    }
 
     // ── 카탈로그 & 기본 조회 ──────────────────────────────────────
 
@@ -207,6 +220,85 @@ class OpenApiIntegrationTest {
     void unknownFormat() throws Exception {
         mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", "yaml"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("파일 포맷에는 Content-Disposition 첨부 헤더가 붙는다")
+    void downloadFormatsHaveAttachmentHeader() throws Exception {
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", "csv"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("attachment")))
+                .andExpect(header().string("Content-Disposition", containsString("bills.csv")));
+
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", "excel"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("bills.xlsx")));
+    }
+
+    @Test
+    @DisplayName("브라우저에서 열리는 포맷에는 Content-Disposition 을 붙이지 않는다")
+    void inlineFormatsHaveNoAttachmentHeader() throws Exception {
+        for (String format : new String[] {"json", "xml", "rdf"}) {
+            mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY).param("format", format))
+                    .andExpect(status().isOk())
+                    .andExpect(header().doesNotExist("Content-Disposition"));
+        }
+    }
+
+    @Test
+    @DisplayName("CSV — 콤마·따옴표·개행(CR 단독 포함)이 든 값은 인용된다")
+    void csvQuotesSpecialCharacters() throws Exception {
+        // 값에 CR 이 섞이면 인용하지 않을 경우 행이 갈라진다
+        createCsvQuoteSource();
+
+        mockMvc.perform(post("/admin/api/datasets")
+                        .with(httpBasic("admin", "admin1234"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "datasetKey": "csv-quote",
+                                  "name": "CSV 인용 검증",
+                                  "sourceTable": "CSV_QUOTE_SRC",
+                                  "columns": [
+                                    {"sourceColumn": "VAL", "displayName": "값", "filterType": "NONE", "sortable": false}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/admin/api/datasets/csv-quote/publish")
+                        .with(httpBasic("admin", "admin1234")))
+                .andExpect(status().isOk());
+
+        String csv = mockMvc.perform(get("/api/v1/datasets/csv-quote")
+                        .header("X-API-Key", KEY).param("format", "csv"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(csv)
+                .contains("\"a,b\"")            // 콤마
+                .contains("\"\"\"q\"\"\"")      // 따옴표 이스케이프
+                .contains("\"cr\rhere\"");      // CR 단독
+
+        mockMvc.perform(delete("/admin/api/datasets/csv-quote")
+                        .with(httpBasic("admin", "admin1234")))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("같은 필터 파라미터를 중복 지정하면 조용히 무시하지 않고 400")
+    void duplicateFilterParamRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY)
+                        .param("BILL_ID", "2200001").param("BILL_ID", "2200002"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("여러 번 지정할 수 없습니다")));
+    }
+
+    @Test
+    @DisplayName("예약 파라미터 중복은 필터 검사 대상이 아니다")
+    void duplicateReservedParamIgnored() throws Exception {
+        mockMvc.perform(get("/api/v1/datasets/bills").header("X-API-Key", KEY)
+                        .param("size", "5").param("size", "5"))
+                .andExpect(status().isOk());
     }
 
     // ── 관리자 워크플로우 E2E ─────────────────────────────────────
