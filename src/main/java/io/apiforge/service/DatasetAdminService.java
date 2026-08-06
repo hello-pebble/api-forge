@@ -13,7 +13,10 @@ import org.jooq.impl.DSL;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * 데이터셋 메타데이터 등록·발행 관리.
@@ -48,7 +51,7 @@ public class DatasetAdminService {
             dataset.addColumn(new DatasetColumn(
                     col.sourceColumn(), col.displayName(), col.filterType(), col.sortable()));
         });
-        metadataCache.invalidate();
+        verifyNoDuplicateColumns(dataset);
         return datasetRepository.save(dataset);
     }
 
@@ -56,6 +59,7 @@ public class DatasetAdminService {
     public Dataset publish(String datasetKey) {
         Dataset dataset = datasetRepository.findByDatasetKey(datasetKey)
                 .orElseThrow(() -> new DatasetNotFoundException(datasetKey));
+        verifyNoDuplicateColumns(dataset);
         verifySourceExists(dataset);
         dataset.publish();
         metadataCache.invalidate();
@@ -68,6 +72,26 @@ public class DatasetAdminService {
                 .orElseThrow(() -> new DatasetNotFoundException(datasetKey));
         datasetRepository.delete(dataset);
         metadataCache.invalidate();
+    }
+
+    /**
+     * 소스 칼럼 중복 검증.
+     *
+     * 중복을 허용하면 등록·발행은 통과하지만 조회 시 jOOQ 가 결과 레코드의
+     * 필드명이 유일하지 않다며 실패해, 해당 데이터셋의 모든 요청이 500 이 된다.
+     * 관리자에게는 성공으로 보이고 소비자만 깨지므로 등록 시점에 막는다.
+     *
+     * 비교는 대소문자 무시 — 조회 시 칼럼 매칭(Dataset#findColumn)이 그렇게 동작하므로
+     * BILL_ID 와 bill_id 를 따로 등록하면 같은 문제가 재현된다.
+     */
+    private void verifyNoDuplicateColumns(Dataset dataset) {
+        Set<String> seen = new HashSet<>();
+        for (DatasetColumn column : dataset.getColumns()) {
+            if (!seen.add(column.getSourceColumn().toLowerCase(Locale.ROOT))) {
+                throw new InvalidQueryException(
+                        "같은 소스 칼럼을 두 번 등록할 수 없습니다: " + column.getSourceColumn());
+            }
+        }
     }
 
     /** 발행 전 소스 테이블·칼럼 실존 검증 — LIMIT 0 프로브 쿼리 */
