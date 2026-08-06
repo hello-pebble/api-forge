@@ -46,7 +46,7 @@ public class RdfResponseWriter implements ResponseWriter {
             for (DatasetColumn col : result.dataset().getColumns()) {
                 Object value = row.get(col.getSourceColumn());
                 writer.write("    <d:" + col.getSourceColumn() + ">"
-                        + escape(value == null ? "" : String.valueOf(value))
+                        + ResponseWriter.escapeXml(value == null ? "" : String.valueOf(value))
                         + "</d:" + col.getSourceColumn() + ">\n");
             }
             writer.write("  </rdf:Description>\n");
@@ -55,12 +55,5 @@ public class RdfResponseWriter implements ResponseWriter {
 
         writer.write("</rdf:RDF>\n");
         writer.flush();
-    }
-
-    private String escape(String value) {
-        return value.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
     }
 }

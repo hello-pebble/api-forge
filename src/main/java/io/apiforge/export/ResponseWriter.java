@@ -17,4 +17,12 @@ public interface ResponseWriter {
     String contentType();
 
     void write(QueryResult result, OutputStream out) throws IOException;
+
+    /** XML 계열(xml, rdf) 텍스트 노드 이스케이프 */
+    static String escapeXml(String value) {
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
 }

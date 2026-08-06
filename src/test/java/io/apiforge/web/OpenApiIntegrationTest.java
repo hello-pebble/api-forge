@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -156,9 +157,7 @@ class OpenApiIntegrationTest {
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .andReturn().getResponse().getContentAsByteArray();
         // xlsx 는 zip 컨테이너 — 매직 넘버 'PK'
-        org.assertj.core.api.Assertions.assertThat(body.length).isGreaterThan(0);
-        org.assertj.core.api.Assertions.assertThat(body[0]).isEqualTo((byte) 'P');
-        org.assertj.core.api.Assertions.assertThat(body[1]).isEqualTo((byte) 'K');
+        assertThat(body).startsWith((byte) 'P', (byte) 'K');
     }
 
     @Test

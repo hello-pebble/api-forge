@@ -32,7 +32,7 @@ public class XmlResponseWriter implements ResponseWriter {
         Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
         writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         writer.write("<response>\n");
-        writer.write("  <datasetKey>" + escape(result.dataset().getDatasetKey()) + "</datasetKey>\n");
+        writer.write("  <datasetKey>" + ResponseWriter.escapeXml(result.dataset().getDatasetKey()) + "</datasetKey>\n");
         writer.write("  <page>" + result.page() + "</page>\n");
         writer.write("  <size>" + result.size() + "</size>\n");
         writer.write("  <totalCount>" + result.totalCount() + "</totalCount>\n");
@@ -42,7 +42,7 @@ public class XmlResponseWriter implements ResponseWriter {
             for (var col : result.dataset().getColumns()) {
                 Object value = row.get(col.getSourceColumn());
                 writer.write("      <" + col.getSourceColumn() + ">"
-                        + escape(value == null ? "" : String.valueOf(value))
+                        + ResponseWriter.escapeXml(value == null ? "" : String.valueOf(value))
                         + "</" + col.getSourceColumn() + ">\n");
             }
             writer.write("    </row>\n");
@@ -50,12 +50,5 @@ public class XmlResponseWriter implements ResponseWriter {
         writer.write("  </rows>\n");
         writer.write("</response>\n");
         writer.flush();
-    }
-
-    private String escape(String value) {
-        return value.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
     }
 }

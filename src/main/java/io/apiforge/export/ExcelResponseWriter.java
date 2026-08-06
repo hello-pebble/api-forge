@@ -2,9 +2,6 @@ package io.apiforge.export;
 
 import io.apiforge.domain.DatasetColumn;
 import io.apiforge.query.QueryResult;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -40,17 +37,10 @@ public class ExcelResponseWriter implements ResponseWriter {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(WINDOW_SIZE)) {
             Sheet sheet = workbook.createSheet(result.dataset().getDatasetKey());
 
-            // 헤더 — 표시명, 볼드
-            CellStyle headerStyle = workbook.createCellStyle();
-            Font bold = workbook.createFont();
-            bold.setBold(true);
-            headerStyle.setFont(bold);
-
+            // 헤더 — 표시명
             Row header = sheet.createRow(0);
             for (int c = 0; c < columns.size(); c++) {
-                Cell cell = header.createCell(c);
-                cell.setCellValue(columns.get(c).getDisplayName());
-                cell.setCellStyle(headerStyle);
+                header.createCell(c).setCellValue(columns.get(c).getDisplayName());
             }
 
             int rowIdx = 1;
@@ -62,8 +52,7 @@ public class ExcelResponseWriter implements ResponseWriter {
                 }
             }
 
-            workbook.write(out);
-            workbook.dispose(); // 임시파일 정리
+            workbook.write(out); // close() 가 임시파일까지 정리한다
         }
     }
 }
